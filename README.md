@@ -1,5 +1,7 @@
 # MMIT-DDPM – Multilateral Medical Image Translation with Class and Structure Supervised Diffusion-Based Model
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hashirama21/mmit-ddpm/blob/main/05-synt1ce-pix2pix.ipynb)
+
 We provide the official PyTorch implementation of the paper [MMIT-DDPM – Multilateral Medical Image Translation with Class and Structure Supervised Diffusion-Based Model]
 
 The implementation of Denoising Diffusion Probabilistic Models presented in the paper is based on [openai/improved-diffusion](https://github.com/openai/improved-diffusion) and [JuliaWolleb/Diffusion-based-Segmentation](https://github.com/JuliaWolleb/Diffusion-based-Segmentation).
