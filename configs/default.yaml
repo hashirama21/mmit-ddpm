@@ -1,0 +1,54 @@
+# MMIT-DDPM — Default configuration
+# All CLI flags can override these values.
+
+model:
+  image_size: 256
+  num_channels: 128
+  num_res_blocks: 2
+  num_heads: 1
+  num_head_channels: -1
+  num_heads_upsample: -1
+  attention_resolutions: "16"
+  channel_mult: ""
+  dropout: 0.0
+  class_cond: false
+  use_checkpoint: false
+  use_scale_shift_norm: false
+  resblock_updown: false
+  use_fp16: false
+  use_new_attention_order: false
+
+diffusion:
+  diffusion_steps: 1000
+  noise_schedule: linear          # linear | cosine
+  learn_sigma: true
+  timestep_respacing: ""
+  use_kl: false
+  predict_xstart: false
+  rescale_timesteps: false
+  rescale_learned_sigmas: false
+
+training:
+  data_dir: ./data/training
+  batch_size: 10
+  lr: 1.0e-4
+  weight_decay: 0.0
+  lr_anneal_steps: 0
+  microbatch: -1                  # -1 disables gradient accumulation
+  ema_rate: "0.9999"
+  log_interval: 100
+  save_interval: 5000
+  resume_checkpoint: ""
+  use_fp16: false
+  fp16_scale_growth: 1.0e-3
+  schedule_sampler: uniform       # uniform | loss-second-moment
+
+sampling:
+  data_dir: ./data/testing
+  model_path: ./results/savedmodel.pt
+  output_dir: ./results
+  batch_size: 1
+  num_samples: 1
+  num_ensemble: 5                 # independent samples per slice
+  use_ddim: false
+  clip_denoised: true

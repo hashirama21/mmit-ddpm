@@ -1,25 +1,30 @@
 """
-Train a diffusion model on images.
+Train the MMIT-DDPM model for multi-modal MRI translation.
+
+Usage:
+    python scripts/train_translation.py --data_dir ./data/training \
+        --image_size 256 --num_channels 128 --num_res_blocks 2 \
+        --diffusion_steps 1000 --noise_schedule linear \
+        --lr 1e-4 --batch_size 10
 """
-import sys
 import argparse
-sys.path.append("..")
+import sys
+
 sys.path.append(".")
-from guided_diffusion import dist_util, logger
-from guided_diffusion.resample import create_named_schedule_sampler
-from guided_diffusion.bratsloader import load_data
-from guided_diffusion.script_util import (
+
+import torch as th
+
+from models import dist_util, logger
+from models.bratsloader import load_data
+from models.resample import create_named_schedule_sampler
+from models.script_util import (
     model_and_diffusion_defaults,
     create_model_and_diffusion,
     args_to_dict,
     add_dict_to_argparser,
 )
-import torch as th
-import matplotlib.pyplot as plt
-from guided_diffusion.train_util import TrainLoop
-# from visdom import Visdom
+from models.train_util import TrainLoop
 
-# viz=Visdom()
 
 def main():
     args = create_argparser().parse_args()
@@ -32,30 +37,31 @@ def main():
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
     model.to(dist_util.dev())
-    schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion,  maxt=1000)
+    schedule_sampler = create_named_schedule_sampler(
+        args.schedule_sampler, diffusion, maxt=1000
+    )
 
     logger.log("creating data loader...")
-    ds= load_data(
+    dataset = load_data(
         data_dir=args.data_dir,
         batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
     )
-    datal= th.utils.data.DataLoader(
-        ds,
+    data_loader = th.utils.data.DataLoader(
+        dataset,
         batch_size=args.batch_size,
-        shuffle=True)
-    
-    data = iter(datal)
+        shuffle=True,
+        num_workers=4,
+        pin_memory=th.cuda.is_available(),
+    )
 
-    
     logger.log("training...")
     TrainLoop(
         model=model,
         diffusion=diffusion,
         classifier=None,
-        data=data,
-        dataloader=datal,
+        dataloader=data_loader,
         batch_size=args.batch_size,
         microbatch=args.microbatch,
         lr=args.lr,
@@ -79,11 +85,11 @@ def create_argparser():
         weight_decay=0.0,
         lr_anneal_steps=0,
         batch_size=1,
-        microbatch=-1,  # -1 disables microbatches
-        ema_rate="0.9999",  # comma-separated list of EMA values
+        microbatch=-1,
+        ema_rate="0.9999",
         log_interval=100,
         save_interval=5000,
-        resume_checkpoint='',#'"./results/pretrainedmodel.pt",
+        resume_checkpoint="",
         use_fp16=False,
         fp16_scale_growth=1e-3,
     )

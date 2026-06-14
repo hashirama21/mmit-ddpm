@@ -5,7 +5,6 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 from .fp16_util import convert_module_to_f16, convert_module_to_f32
-#from fp16_util import convert_module_to_f16, convert_module_to_f32
 
 from .nn import (
     checkpoint,
@@ -17,11 +16,7 @@ from .nn import (
     timestep_embedding,
 )
 
-
 from .resnet import ResnetGenerator2
-#from resnet import ResnetGenerator2
-#from .resnet import UnetGenerator
-#from resnet import UnetGenerator
 
 class AttentionPool2d(nn.Module):
     """
@@ -78,7 +73,6 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
             if isinstance(layer, TimestepBlock):
                 x = layer(x, emb)
             else:
-                # print(x.shape)
                 x = layer(x)
         return x
 
@@ -643,9 +637,9 @@ class UNetModel(nn.Module):
         self.middle_block.apply(convert_module_to_f32)
         self.output_blocks.apply(convert_module_to_f32)
         
-    def def_gen(self,x):
-        return self.resnet(x)  ## for resnet conditionining
-        #return self.con_unet(x)
+    def apply_structure_conditioning(self, x):
+        """Run the source modality through the ResNet conditioner."""
+        return self.resnet(x)
         
 
     def forward(self, x, timesteps, y=None):
@@ -672,17 +666,16 @@ class UNetModel(nn.Module):
 
         c = h[:,:-1,...]
 
-        anch = self.def_gen(c)
+        structure_cond = self.apply_structure_conditioning(c)
 
-        
         for ind, module in enumerate(self.input_blocks):
             if len(emb.size()) > 2:
                 emb = emb.squeeze()
             if ind == 0:
                 h = module(h, emb)
-                h = h + anch ##[1,64,256] + [1,64,256,256]
+                h = h + structure_cond
             else:
-                h = module(h,emb)
+                h = module(h, emb)
             hs.append(h)
         h = self.middle_block(h, emb)
         for module in self.output_blocks:
@@ -857,7 +850,6 @@ class EncoderUNetModel(nn.Module):
         self.pool = pool
         self.gap = nn.AvgPool2d((8, 8))  #global average pooling
         self.cam_feature_maps = None
-        print('pool', pool)
         if pool == "adaptive":
             self.out = nn.Sequential(
                 normalization(ch),
@@ -926,9 +918,8 @@ class EncoderUNetModel(nn.Module):
         if self.pool.startswith("spatial"):
             self.cam_feature_maps = h
             h = self.gap(h)
-            N = h.shape[0]
-            h = h.reshape(N, -1)
-            print('h1', h.shape)
+            n = h.shape[0]
+            h = h.reshape(n, -1)
             return self.out(h)
         else:
             h = h.type(x.dtype)
@@ -937,13 +928,10 @@ class EncoderUNetModel(nn.Module):
 
 if __name__ == "__main__":
     device = th.device("cuda" if th.cuda.is_available() else "cpu")
-    x = th.randn(4,2,256,256).to(device)
-    x = x.to(device)
-    t = th.tensor([500])
-    t = t.to(device)
-    model = UNetModel(image_size = 256, in_channels = 2, model_channels = 128, out_channels = 2, num_res_blocks=2)
-    model = model.to(device)
-    print(sum(p.numel() for p in model.parameters() if p.requires_grad))
-    # net = ResnetGenerator(1,3)
-    # net = net.to(device)
-    # print(net)
+    x = th.randn(4, 2, 256, 256).to(device)
+    t = th.tensor([500]).to(device)
+    model = UNetModel(
+        image_size=256, in_channels=2, model_channels=128, out_channels=2, num_res_blocks=2
+    ).to(device)
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Trainable parameters: {n_params:,}")
