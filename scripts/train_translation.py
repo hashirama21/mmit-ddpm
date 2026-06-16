@@ -1,56 +1,51 @@
 """
 Train the MMIT-DDPM model for multi-modal MRI translation.
 
-Usage:
-    python scripts/train_translation.py --data_dir ./data/training \
-        --image_size 256 --num_channels 128 --num_res_blocks 2 \
-        --diffusion_steps 1000 --noise_schedule linear \
-        --lr 1e-4 --batch_size 10
+Configuration is managed by Hydra (configs/default.yaml). Override any value
+from the command line, e.g.:
+
+    python scripts/train_translation.py training.lr=2e-5 model.num_channels=64
 """
-import argparse
 import sys
 
 sys.path.append(".")
 
+import hydra
 import torch as th
+from omegaconf import DictConfig, OmegaConf
 
 from models import dist_util, logger
 from models.bratsloader import load_data
 from models.resample import create_named_schedule_sampler
-from models.script_util import (
-    model_and_diffusion_defaults,
-    create_model_and_diffusion,
-    args_to_dict,
-    add_dict_to_argparser,
-)
+from models.script_util import create_model_and_diffusion
 from models.train_util import TrainLoop
 
 
-def main():
-    args = create_argparser().parse_args()
-
+@hydra.main(version_base=None, config_path="../configs", config_name="default")
+def main(cfg: DictConfig):
     dist_util.setup_dist()
     logger.configure()
 
     logger.log("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(
-        **args_to_dict(args, model_and_diffusion_defaults().keys())
+        **OmegaConf.to_container(cfg.model, resolve=True),
+        **OmegaConf.to_container(cfg.diffusion, resolve=True),
     )
     model.to(dist_util.dev())
     schedule_sampler = create_named_schedule_sampler(
-        args.schedule_sampler, diffusion, maxt=1000
+        cfg.training.schedule_sampler, diffusion, maxt=diffusion.num_timesteps
     )
 
     logger.log("creating data loader...")
     dataset = load_data(
-        data_dir=args.data_dir,
-        batch_size=args.batch_size,
-        image_size=args.image_size,
-        class_cond=args.class_cond,
+        data_dir=cfg.training.data_dir,
+        batch_size=cfg.training.batch_size,
+        image_size=cfg.model.image_size,
+        class_cond=cfg.model.class_cond,
     )
     data_loader = th.utils.data.DataLoader(
         dataset,
-        batch_size=args.batch_size,
+        batch_size=cfg.training.batch_size,
         shuffle=True,
         num_workers=4,
         pin_memory=th.cuda.is_available(),
@@ -62,41 +57,19 @@ def main():
         diffusion=diffusion,
         classifier=None,
         dataloader=data_loader,
-        batch_size=args.batch_size,
-        microbatch=args.microbatch,
-        lr=args.lr,
-        ema_rate=args.ema_rate,
-        log_interval=args.log_interval,
-        save_interval=args.save_interval,
-        resume_checkpoint=args.resume_checkpoint,
-        use_fp16=args.use_fp16,
-        fp16_scale_growth=args.fp16_scale_growth,
+        batch_size=cfg.training.batch_size,
+        microbatch=cfg.training.microbatch,
+        lr=cfg.training.lr,
+        ema_rate=cfg.training.ema_rate,
+        log_interval=cfg.training.log_interval,
+        save_interval=cfg.training.save_interval,
+        resume_checkpoint=cfg.training.resume_checkpoint,
+        use_fp16=cfg.training.use_fp16,
+        fp16_scale_growth=cfg.training.fp16_scale_growth,
         schedule_sampler=schedule_sampler,
-        weight_decay=args.weight_decay,
-        lr_anneal_steps=args.lr_anneal_steps,
+        weight_decay=cfg.training.weight_decay,
+        lr_anneal_steps=cfg.training.lr_anneal_steps,
     ).run_loop()
-
-
-def create_argparser():
-    defaults = dict(
-        data_dir="./data/training",
-        schedule_sampler="uniform",
-        lr=1e-4,
-        weight_decay=0.0,
-        lr_anneal_steps=0,
-        batch_size=1,
-        microbatch=-1,
-        ema_rate="0.9999",
-        log_interval=100,
-        save_interval=5000,
-        resume_checkpoint="",
-        use_fp16=False,
-        fp16_scale_growth=1e-3,
-    )
-    defaults.update(model_and_diffusion_defaults())
-    parser = argparse.ArgumentParser()
-    add_dict_to_argparser(parser, defaults)
-    return parser
 
 
 if __name__ == "__main__":

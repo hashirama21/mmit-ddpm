@@ -385,7 +385,7 @@ class GaussianDiffusion:
         return final["sample"], x_noisy, img
 
     def p_sample_loop_progressive(
-        self, model, shape, time=1000, noise=None, clip_denoised=True,
+        self, model, shape, time=None, noise=None, clip_denoised=True,
         denoised_fn=None, cond_fn=None, org=None, model_kwargs=None,
         device=None, progress=False,
     ):
@@ -400,7 +400,8 @@ class GaussianDiffusion:
         assert isinstance(shape, (tuple, list))
 
         img = noise if noise is not None else th.randn(*shape, device=device)
-        indices = list(range(time))[::-1]
+        T = self.num_timesteps if time is None else int(time)
+        indices = list(range(T))[::-1]
 
         # Preserve source channels across denoising steps.
         n_source = img.shape[1] - 1

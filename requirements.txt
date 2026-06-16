@@ -16,6 +16,10 @@ pandas>=1.4.3
 einops>=0.4.1
 blobfile>=1.2.0
 
+# Configuration
+hydra-core>=1.3.0
+omegaconf>=2.3.0
+
 # Visualisation (optional — server must be running for viz to appear)
 visdom>=0.2.4
 matplotlib>=3.5.3

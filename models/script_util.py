@@ -13,7 +13,7 @@ def diffusion_defaults():
     Defaults for image and classifier training.
     """
     return dict(
-        learn_sigma=False,
+        learn_sigma=True,
         diffusion_steps=1000,
         noise_schedule="linear",
         timestep_respacing="",
@@ -45,18 +45,18 @@ def model_and_diffusion_defaults():
     Defaults for image training.
     """
     res = dict(
-        image_size=64,
+        image_size=256,
         num_channels=128,
         num_res_blocks=2,
-        num_heads=4,
+        num_heads=1,
         num_heads_upsample=-1,
         num_head_channels=-1,
-        attention_resolutions="16,8",
+        attention_resolutions="16",
         channel_mult="",
         dropout=0.0,
-        class_cond=True,#False
+        class_cond=False,
         use_checkpoint=False,
-        use_scale_shift_norm=True,
+        use_scale_shift_norm=False,
         resblock_updown=False,
         use_fp16=False,
         use_new_attention_order=False,
@@ -133,7 +133,7 @@ def create_model(
     num_res_blocks,
     channel_mult="",
     learn_sigma=False,
-    class_cond=True, #False
+    class_cond=False,
     use_checkpoint=False,
     attention_resolutions="16",
     num_heads=1,
@@ -167,7 +167,7 @@ def create_model(
         image_size=image_size,
         in_channels=2,
         model_channels=num_channels,
-        out_channels=2,#(3 if not learn_sigma else 6),
+        out_channels=(1 if not learn_sigma else 2),
         num_res_blocks=num_res_blocks,
         attention_resolutions=tuple(attention_ds),
         dropout=dropout,
@@ -402,6 +402,8 @@ def create_gaussian_diffusion(
         loss_type = gd.LossType.MSE
     if not timestep_respacing:
         timestep_respacing = [steps]
+    elif isinstance(timestep_respacing, int):
+        timestep_respacing = str(timestep_respacing)
     return SpacedDiffusion(
         use_timesteps=space_timesteps(steps, timestep_respacing),
         betas=betas,

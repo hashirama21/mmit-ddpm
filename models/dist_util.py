@@ -24,24 +24,13 @@ def setup_dist():
     """
     if dist.is_initialized():
         return
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
     backend = "gloo" if not th.cuda.is_available() else "nccl"
 
-    if backend == "gloo":
-        hostname = "localhost"
-    else:
-        hostname = socket.gethostbyname(socket.getfqdn())
-    os.environ["MASTER_ADDR"] = '127.0.1.1'#comm.bcast(hostname, root=0)
-    os.environ["RANK"] = '0'#str(comm.rank)
-    os.environ["WORLD_SIZE"] = '1'#str(comm.size)
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 0))
-    s.listen(1)
-    port = s.getsockname()[1]
-    s.close()
-    os.environ["MASTER_PORT"] = str(port)
+    os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
+    os.environ.setdefault("RANK", "0")
+    os.environ.setdefault("WORLD_SIZE", "1")
+    os.environ.setdefault("MASTER_PORT", str(_find_free_port()))
     dist.init_process_group(backend=backend, init_method="env://")
 
 
@@ -58,12 +47,9 @@ def load_state_dict(path, **kwargs):
     """
     Load a PyTorch file without redundant fetches across MPI ranks.
     """
-    mpigetrank=0
-    if mpigetrank==0:
-        with bf.BlobFile(path, "rb") as f:
-            data = f.read()
-    else:
-        data = None
+    with bf.BlobFile(path, "rb") as f:
+        data = f.read()
+    kwargs.setdefault("weights_only", False)
     return th.load(io.BytesIO(data), **kwargs)
 
 

@@ -445,8 +445,8 @@ class ResnetGenerator2(nn.Module):
         self.downsample = nn.ModuleList(self.downsample)
         self.resblocks = nn.ModuleList(self.resblocks)
         self.upsample = nn.ModuleList(self.upsample)
-        self.expansion = nn.Linear(ngf, 2*ngf, bias= False)
-        self.norm = norm_layer2(ngf*2)
+        self.expansion = nn.Linear(ngf, out_nc, bias=False)
+        self.norm = norm_layer2(out_nc)
        
     def forward(self, x):
        

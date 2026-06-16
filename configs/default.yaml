@@ -1,5 +1,10 @@
 # MMIT-DDPM — Default configuration
-# All CLI flags can override these values.
+# Managed by Hydra. Override any value on the command line, e.g. training.lr=2e-5
+
+defaults:
+  - _self_
+  - override hydra/job_logging: none
+  - override hydra/hydra_logging: none
 
 model:
   image_size: 256
@@ -52,3 +57,18 @@ sampling:
   num_ensemble: 5                 # independent samples per slice
   use_ddim: false
   clip_denoised: true
+
+eval:
+  data_dir: ./data/training       # paired (H, W, 2) slices with ground-truth target
+  model_path: ./results/savedmodel.pt
+  output_csv: ./results/metrics.csv
+  num_eval: 0                     # 0 = evaluate every file in data_dir
+  use_ddim: false
+  clip_denoised: true
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
